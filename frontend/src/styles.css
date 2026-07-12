@@ -182,6 +182,14 @@ dd {
   color: #66758a;
 }
 
+.guidance {
+  margin-top: 10px;
+  border-radius: 6px;
+  background: #f4f7fc;
+  padding: 10px 12px;
+  color: #4b5b71;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

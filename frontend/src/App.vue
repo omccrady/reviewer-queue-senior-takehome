@@ -18,6 +18,44 @@ const selectedItem = computed(() =>
   items.value.find((item) => item.id === selectedId.value) ?? items.value[0] ?? null
 );
 
+const availableActions = computed<ReviewAction[]>(() => {
+  if (!selectedItem.value) {
+    return [];
+  }
+
+  switch (selectedItem.value.status) {
+    case "unassigned":
+      return ["claim"];
+    case "in_review":
+      return ["approve", "reject", "escalate"];
+    default:
+      return [];
+  }
+});
+
+const helperText = computed(() => {
+  if (!selectedItem.value) {
+    return "Select an item to see the next action.";
+  }
+
+  switch (selectedItem.value.status) {
+    case "unassigned":
+      return "Claim to begin review.";
+    case "in_review":
+      return selectedItem.value.assigned_reviewer === currentReviewer
+        ? "You are already reviewing this item. Choose a decision."
+        : "This item is already in review. Choose a decision.";
+    case "approved":
+      return "This item is already approved and no further actions are available.";
+    case "rejected":
+      return "This item is already rejected and no further actions are available.";
+    case "escalated":
+      return "This item is already escalated and no further actions are available.";
+    default:
+      return "No next action is available.";
+  }
+});
+
 async function loadItems() {
   isLoading.value = true;
   errorMessage.value = null;
@@ -41,6 +79,7 @@ async function performAction(action: ReviewAction) {
   try {
     const updated = await applyReviewAction(selectedItem.value.id, action, currentReviewer);
     items.value = items.value.map((item) => (item.id === updated.id ? updated : item));
+    selectedId.value = updated.id;
   } catch (error) {
     errorMessage.value = "That action could not be completed.";
   } finally {
@@ -53,6 +92,10 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function canPerform(action: ReviewAction) {
+  return availableActions.value.includes(action);
 }
 
 onMounted(loadItems);
@@ -117,18 +160,35 @@ onMounted(loadItems);
 
         <p class="summary">{{ selectedItem.summary }}</p>
         <p class="notes">{{ selectedItem.notes_count }} notes on this item</p>
+        <p class="guidance">{{ helperText }}</p>
 
         <div class="actions" aria-label="Workflow actions">
-          <button type="button" :disabled="Boolean(pendingAction)" @click="performAction('claim')">
+          <button
+            type="button"
+            :disabled="Boolean(pendingAction) || !canPerform('claim')"
+            @click="performAction('claim')"
+          >
             Claim
           </button>
-          <button type="button" :disabled="Boolean(pendingAction)" @click="performAction('approve')">
+          <button
+            type="button"
+            :disabled="Boolean(pendingAction) || !canPerform('approve')"
+            @click="performAction('approve')"
+          >
             Approve
           </button>
-          <button type="button" :disabled="Boolean(pendingAction)" @click="performAction('reject')">
+          <button
+            type="button"
+            :disabled="Boolean(pendingAction) || !canPerform('reject')"
+            @click="performAction('reject')"
+          >
             Reject
           </button>
-          <button type="button" :disabled="Boolean(pendingAction)" @click="performAction('escalate')">
+          <button
+            type="button"
+            :disabled="Boolean(pendingAction) || !canPerform('escalate')"
+            @click="performAction('escalate')"
+          >
             Escalate
           </button>
         </div>
