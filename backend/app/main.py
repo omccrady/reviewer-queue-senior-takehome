@@ -56,7 +56,7 @@ async def list_review_items(active_only: bool = True) -> dict:
     items = deepcopy(ITEMS)
 
     if active_only:
-        items = [item for item in items if item["status"] != "approved"]
+        items = [item for item in items if item["status"] not in {"approved", "rejected", "escalated"}]
 
     items.sort(key=lambda item: item["submitted_at"], reverse=True)
     return {"items": items}
@@ -70,7 +70,15 @@ async def get_review_item(item_id: str) -> dict:
 
 @app.post("/review-items/{item_id}/actions")
 async def apply_action(item_id: str, request: ActionRequest) -> dict:
-    item = find_item(item_id)
+
+    item_index = next(
+        (index for index, item in enumerate(ITEMS) if item["id"] == item_id),
+        None,
+    )
+    if item_index is None:
+        raise HTTPException(status_code=404, detail="Review item not found")
+
+    item = ITEMS[item_index]
 
     if request.action == "claim":
         if item["status"] in {"approved", "rejected", "escalated"}:
@@ -84,6 +92,7 @@ async def apply_action(item_id: str, request: ActionRequest) -> dict:
     else:
         raise HTTPException(status_code=400, detail="Unsupported action")
 
+    ITEMS[item_index] = item
     return {"item": deepcopy(item)}
 
 
